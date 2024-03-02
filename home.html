@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Experiment Tracker</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f0f0f0;
+      }
+      h1 {
+        background-color: #333;
+        color: #fff;
+        padding: 10px 0;
+        text-align: center;
+      }
+      .message {
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 20px auto;
+        width: 80%;
+        text-align: center;
+      }
+      table {
+        width: 80%;
+        margin: 40px auto;
+        border-collapse: collapse;
+      }
+      th {
+        font-size: 1.2em;
+        font-weight: bold;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+      tr:hover {
+        background-color: #ddd;
+      }
+      a {
+        display: block;
+        width: 200px;
+        height: 40px;
+        margin: 20px auto;
+        background-color: #4caf50;
+        color: white;
+        text-align: center;
+        padding: 10px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      a:hover {
+        background-color: #45a049;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", (event) => {
+        var socket = io.connect(
+          "http://" + document.domain + ":" + location.port
+        );
+        socket.on("connect", function () {
+          console.log("Connected to server");
+        });
+        socket.on("training progress", function (data) {
+          // Update job status and progress
+          console.log(data);
+          document.getElementById("status-" + data.job_id).innerText =
+            data.status;
+          document.getElementById("progress-" + data.job_id).innerText =
+            (data.progress * 100).toFixed(2) + "%";
+        });
+        socket.on("training Completed", function (data) {
+          // Update job status and accuracy
+          document.getElementById("status-" + data.job_id).innerText =
+            data.status;
+          document.getElementById("accuracy-" + data.job_id).innerText =
+            (data.accuracy * 100).toFixed(2) + "%";
+          document.getElementById("precision-" + data.job_id).innerText =
+            (data.precision * 100).toFixed(2) + "%";
+          document.getElementById("recall-" + data.job_id).innerText =
+            (data.recall * 100).toFixed(2) + "%";
+          document.getElementById("run-time-" + data.job_id).innerText =
+            data.run_time.toFixed(2) + "s";
+        });
+      });
+      var sortDirections = [1, 1, 1, 1, 1]; // 1 for ascending, -1 for descending
+
+      function sortTable(n) {
+        var table, rows, switching, i, x, y, shouldSwitch;
+        table = document.getElementById("myTable");
+        switching = true;
+        while (switching) {
+          switching = false;
+          rows = table.rows;
+          for (i = 1; i < rows.length - 1; i++) {
+            shouldSwitch = false;
+            x = rows[i].getElementsByTagName("TD")[n];
+            y = rows[i + 1].getElementsByTagName("TD")[n];
+            if (sortDirections[n] == 1) {
+              if (
+                Number(x.innerHTML.replace("%", "")) >
+                Number(y.innerHTML.replace("%", ""))
+              ) {
+                shouldSwitch = true;
+                break;
+              }
+            } else {
+              if (
+                Number(x.innerHTML.replace("%", "")) <
+                Number(y.innerHTML.replace("%", ""))
+              ) {
+                shouldSwitch = true;
+                break;
+              }
+            }
+          }
+          if (shouldSwitch) {
+            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+            switching = true;
+          }
+        }
+        sortDirections[n] *= -1; // toggle the direction
+      }
+    </script>
+  </head>
+
+  <body>
+    <h1>Experiment Tracker</h1>
+    {% if request.args.get('message') %}
+    <div class="message">{{ request.args.get('message') }}</div>
+    {% endif %}
+    <table id="myTable">
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>
+          Accuracy
+          <button onclick="sortTable(2)">Sort</button>
+        </th>
+        <th>
+          Precision
+          <button onclick="sortTable(3)">Sort</button>
+        </th>
+        <th>
+          Recall
+          <button onclick="sortTable(4)">Sort</button>
+        </th>
+        <th>
+          Run Time
+          <button onclick="sortTable(5)">Sort</button>
+        </th>
+        <th>Progress</th>
+        <th>Hyperparameters</th>
+      </tr>
+
+      {% for job in jobs %}
+      <tr>
+        <td>{{job.id}}</td>
+        <td id="status-{{job.id}}">{{job.status}}</td>
+        <td id="accuracy-{{job.id}}">{{(job.accuracy* 100)| round(2)}}</td>
+        <td id="precision-{{job.id}}">{{(job.precision* 100)| round(2)}}</td>
+        <td id="recall-{{job.id}}">{{(job.recall* 100)| round(2)}}</td>
+        <td id="run-time-{{job.id}}">{{job.run_time | round(2)}}</td>
+        <td id="progress-{{job.id}}">{{(job.progress)|round(2)}}%</td>
+        <td>
+          <ul>
+            {% for key, value in job.hyperparameters.items() %}
+            <li>{{key}}: {{value}}</li>
+            {% endfor %}
+          </ul>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <a href="/new">Add New Experiment</a>
+  </body>
+</html>
